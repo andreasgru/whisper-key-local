@@ -17,7 +17,8 @@ class WhisperEngine:
                  initial_prompt: str = "",
                  hotwords: list = None,
                  vad_manager = None,
-                 model_registry = None):
+                 model_registry = None,
+                 log_transcriptions: bool = False):
 
         self.model_key = model_key
         self.device = device
@@ -29,6 +30,7 @@ class WhisperEngine:
         self.model = None
         self.logger = logging.getLogger(__name__)
         self.registry = model_registry
+        self.log_transcriptions = log_transcriptions
 
         self._loading_thread = None
         self._progress_callback = None

@@ -21,7 +21,6 @@ def load_wav(path):
 def main():
     audio = load_wav(sys.argv[1])
     engine = WhisperEngine(model_key="base", device="cpu", compute_type="int8")
-    engine._load_model()
     text = engine.transcribe_audio(audio)
     print(f"Transkript: {text!r}")
     assert text, "kein Transkript"
