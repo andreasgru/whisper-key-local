@@ -10,11 +10,7 @@ import signal
 import sys
 import threading
 
-sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-sys.stdout.write("\033]0;Whisper Key\007")
-sys.stdout.flush()
-
-from .platform import app, permissions
+from .platform import app, permissions, console
 from .config_manager import ConfigManager
 from .audio_stream import AudioStreamManager
 from .audio_recorder import AudioRecorder
@@ -25,6 +21,8 @@ from .clipboard_manager import ClipboardManager
 from .state_manager import StateManager, ListeningMode
 from .continuous_listener import ContinuousListener
 from .realtime_preview import RealtimePreview
+from .terminal_title import TerminalTitle
+from .text_postprocessor import TextPostProcessor
 from .system_tray import SystemTray
 from .audio_feedback import AudioFeedback
 from .instance_manager import guard_against_multiple_instances
@@ -103,18 +101,31 @@ def setup_streaming(streaming_config, model_registry):
         model_registry=model_registry
     )
 
-def setup_whisper_engine(whisper_config, vad_manager, model_registry, log_transcriptions=False):
-    return WhisperEngine(
-        model_key=whisper_config['model'],
-        device=whisper_config['device'],
-        compute_type=whisper_config['compute_type'],
-        language=whisper_config['language'],
-        beam_size=whisper_config['beam_size'],
-        initial_prompt=whisper_config.get('initial_prompt', ''),
-        hotwords=whisper_config.get('hotwords', []),
-        vad_manager=vad_manager,
-        model_registry=model_registry,
-        log_transcriptions=log_transcriptions
+def setup_whisper_engine(whisper_config, vad_manager, model_registry, config_manager=None):
+    try:
+        return WhisperEngine(
+            model_key=whisper_config['model'],
+            device=whisper_config['device'],
+            compute_type=whisper_config['compute_type'],
+            language=whisper_config['language'],
+            beam_size=whisper_config['beam_size'],
+            initial_prompt=whisper_config.get('initial_prompt', ''),
+            hotwords=whisper_config.get('hotwords', []),
+            vad_manager=vad_manager,
+            model_registry=model_registry
+        )
+    except RuntimeError as e:
+        if whisper_config['device'] != 'cuda' or not config_manager:
+            raise
+        return _handle_gpu_failure(e, whisper_config, vad_manager, model_registry, config_manager)
+
+def setup_terminal_title(terminal_title_config):
+    return TerminalTitle(frames_config=terminal_title_config)
+
+def setup_text_postprocessor(post_processing_config):
+    return TextPostProcessor(
+        strip_trailing_period=post_processing_config.get('strip_trailing_period', False),
+        corrections=post_processing_config.get('corrections') or {}
     )
 
 def setup_clipboard_manager(clipboard_config):
@@ -135,10 +146,12 @@ def setup_audio_feedback(audio_feedback_config):
     return AudioFeedback(
         enabled=audio_feedback_config['enabled'],
         transcription_complete_enabled=audio_feedback_config['transcription_complete_enabled'],
+        ready_enabled=audio_feedback_config['ready_enabled'],
         start_sound=audio_feedback_config['start_sound'],
         stop_sound=audio_feedback_config['stop_sound'],
         cancel_sound=audio_feedback_config['cancel_sound'],
-        transcription_complete_sound=audio_feedback_config['transcription_complete_sound']
+        transcription_complete_sound=audio_feedback_config['transcription_complete_sound'],
+        ready_sound=audio_feedback_config['ready_sound']
     )
 
 def setup_voice_commands(voice_commands_config, clipboard_manager, log_transcriptions=False):
@@ -148,12 +161,13 @@ def setup_voice_commands(voice_commands_config, clipboard_manager, log_transcrip
         log_transcriptions=log_transcriptions
     )
 
-def setup_system_tray(tray_config, config_manager, state_manager, model_registry):
+def setup_system_tray(tray_config, config_manager, state_manager, model_registry, console_config=None):
     return SystemTray(
         state_manager=state_manager,
         tray_config=tray_config,
         config_manager=config_manager,
-        model_registry=model_registry
+        model_registry=model_registry,
+        console_config=console_config
     )
 
 def setup_wake_word_engine(wake_word_config, logger):
@@ -205,6 +219,14 @@ def run_gpu_onboarding(config_manager, whisper_config):
     return config_manager.get_whisper_config()
 
 
+def _handle_gpu_failure(error, whisper_config, vad_manager, model_registry, config_manager):
+    from .onboarding import handle_gpu_failure
+    handle_gpu_failure(error, config_manager)
+    whisper_config['device'] = 'cpu'
+    whisper_config['compute_type'] = 'int8'
+    return setup_whisper_engine(whisper_config, vad_manager, model_registry)
+
+
 def setup_signal_handlers(shutdown_event):
     def signal_handler(signum, frame):
         shutdown_event.set()
@@ -234,6 +256,8 @@ def shutdown_app(hotkey_listener: HotkeyListener, state_manager: StateManager, l
         state_manager.shutdown()
 
 def main():
+    console.setup()
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     app.setup()
 
     parser = argparse.ArgumentParser()
@@ -260,6 +284,7 @@ def main():
         monitors.set_dpi_awareness()
 
         config_manager = ConfigManager()
+        terminal_title = setup_terminal_title(config_manager.get_terminal_title_config())
         setup_logging(config_manager)
         logger = logging.getLogger(__name__)
         setup_exception_handler()
@@ -275,6 +300,8 @@ def main():
         vad_config = config_manager.get_vad_config()
         streaming_config = config_manager.get_streaming_config()
         voice_commands_config = config_manager.get_voice_commands_config()
+        post_processing_config = config_manager.get_post_processing_config()
+        console_config = config_manager.get_console_config()
         log_config = config_manager.get_logging_config()
         log_transcriptions = log_config.get('log_transcriptions', False)
 
@@ -286,11 +313,12 @@ def main():
         )
         vad_manager = setup_vad(vad_config)
         streaming_manager = setup_streaming(streaming_config, model_registry)
-        whisper_engine = setup_whisper_engine(whisper_config, vad_manager, model_registry, log_transcriptions)
+        whisper_engine = setup_whisper_engine(whisper_config, vad_manager, model_registry, config_manager)
         streaming_manager.initialize()
         clipboard_manager = setup_clipboard_manager(clipboard_config)
         audio_feedback = setup_audio_feedback(audio_feedback_config)
         voice_command_manager = setup_voice_commands(voice_commands_config, clipboard_manager, log_transcriptions)
+        text_postprocessor = setup_text_postprocessor(post_processing_config)
 
         audio_stream_manager = AudioStreamManager(device=audio_config['input_device'])
         listening_config = config_manager.get_listening_config()
@@ -305,6 +333,8 @@ def main():
             vad_manager=vad_manager,
             voice_command_manager=voice_command_manager,
             audio_stream_manager=audio_stream_manager,
+            text_postprocessor=text_postprocessor,
+            terminal_title=terminal_title,
         )
 
         continuous_listener = ContinuousListener(
@@ -351,7 +381,7 @@ def main():
             state_manager.wake_word_manager = wake_word_manager
 
         audio_recorder = setup_audio_recorder(audio_config, audio_stream_manager, state_manager, vad_manager, streaming_manager)
-        system_tray = setup_system_tray(tray_config, config_manager, state_manager, model_registry)
+        system_tray = setup_system_tray(tray_config, config_manager, state_manager, model_registry, console_config)
         state_manager.attach_components(audio_recorder, system_tray)
 
         if args.mode is not None:
@@ -375,6 +405,7 @@ def main():
         hotkey_listener = setup_hotkey_listener(hotkey_config, state_manager, voice_commands_config['enabled'])
 
         system_tray.start()
+        terminal_title.start()
 
         if clipboard_config['auto_paste']:
             if not permissions.check_accessibility_permission():
@@ -396,6 +427,7 @@ def main():
                 state_manager.listening_mode = ListeningMode.HOTKEY
 
         print("🚀 Whisper Key ready!")
+        audio_feedback.play_ready_sound()
         config_manager.print_startup_hotkey_instructions()
         if http_trigger:
             print(f"   [HTTP] trigger on http://{http_host}:{http_port}")
@@ -403,6 +435,8 @@ def main():
         preview_label = "on" if mode_info["preview"] else "off"
         print(f"   [MODE] {mode_info['mode']} (preview: {preview_label})")
         print("   [CTRL+C] to quit", flush=True)
+
+        system_tray.apply_console_settings()
 
         app.run_event_loop(shutdown_event)
             

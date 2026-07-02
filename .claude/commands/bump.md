@@ -11,6 +11,7 @@ BUMP: $ARGUMENTS
     - If BUMP=M then bump major version
     - If BUMP=m then bump minor version
     - If BUMP=f or BUMP is empty then bump patch/fix version
+    - v0.x.x: minor = patch
 3. Ask user to confirm: "Bump version from [CURRENT VERSION] to [NEW VERSION]?"
 4. Update version in pyproject.toml
 5. Git commt

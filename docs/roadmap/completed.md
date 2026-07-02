@@ -48,6 +48,12 @@
 - As a *user* I want **transcription preset commands** so I can instantly deliver pre-written phrases without recording or transcribing
 - As a *user* I want **hotkey-activated commands** so I can bind specific voice commands to custom hotkeys and skip the speech step entirely
 - As a *user* I want **push-to-talk mode** so I can hold the hotkey to record and release to stop, as a configurable alternative to toggle mode ([#45](https://github.com/PinW/whisper-key-local/pull/45))
+- As a *user* I want **trailing period stripped** from transcription output so dictating into terminals, chat messages, and form fields doesn't leave a stray `.` at the end (config: `post_processing.strip_trailing_period`) ([#55](https://github.com/PinW/whisper-key-local/issues/55))
+- As a *user* I want **`recording_mode` to also apply to the commands hotkey** so push-to-talk works the same for alt-win commands as it does for ctrl-win transcription ([#56](https://github.com/PinW/whisper-key-local/issues/56))
+- As a *user* I want **spelling corrections** so recurring misheard words are automatically fixed after transcription (config: `post_processing.corrections`) ([#59](https://github.com/PinW/whisper-key-local/issues/59))
+- As a *user*, I want **custom hotwords** so I can bias the transcription model toward rare words and names that I say often ([#34](https://github.com/PinW/whisper-key-local/pull/34))
+- As a *user* I want **terminal tab title status** so I can see recording state at a glance in my terminal ([#61](https://github.com/PinW/whisper-key-local/pull/61))
+- As a *user* I want a **startup sound** so I know the app is ready to use when it finishes loading ([#62](https://github.com/PinW/whisper-key-local/pull/62))
 
 ## Resolved Bugs
 

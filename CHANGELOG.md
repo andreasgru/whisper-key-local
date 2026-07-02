@@ -2,6 +2,30 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+## [0.8.2] - 2026-06-13
+
+### Added
+- **Text corrections** - Fix recurring misheard words with a user-defined list (`post_processing.corrections`): variants match case-insensitively and are replaced with your exact spelling — a deterministic backstop for jargon `whisper.hotwords` can't fix (#59, #60)
+- **Terminal tab title status** - Tab title blinks a red dot while recording; indicator and animation per state are customizable via the new `terminal_title` config section (#61)
+- **Startup ready sound** - Plays a short chime when the app finishes loading (`audio_feedback.ready_enabled`) (#62)
+- **GPU failure recovery** - When GPU model loading fails, the app now offers to re-run GPU setup or fall back to CPU instead of crashing
+- `post_processing.strip_trailing_period` config option to strip a trailing period from transcription output (#55)
+
+### Changed
+- **`recording_mode` now applies to the command hotkey** - push-to-talk works the same for voice commands as for transcription (#56)
+- New `post_processing` config section owns output text transforms; transcribed text is now printed/logged after post-processing so the console always shows what gets pasted
+
+## [0.8.1] - 2026-04-18
+
+### Added
+- **Push-to-talk mode** - New `hotkey.recording_mode` config: hold the recording hotkey to record, release to stop and transcribe (#45)
+- **Console window management** - Two exe variants:
+  - `whisper-key.exe` - runs in Windows Terminal with full color (same as before)
+  - `whisper-key-hideable.exe` - conhost with hide-to-tray support (`console.start_hidden` config option) (#50)
+
+### Fixed
+- Stop key requiring two presses in toggle mode (#54)
+
 ## [0.8.0] - 2026-03-17
 
 ### Added

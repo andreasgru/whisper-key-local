@@ -13,6 +13,7 @@ from .whisper_engine import WhisperEngine
 from .clipboard_manager import ClipboardManager
 from .system_tray import SystemTray
 from .config_manager import ConfigManager
+from .text_postprocessor import TextPostProcessor
 from .audio_feedback import AudioFeedback
 from .utils import OptionalComponent
 from .voice_activity_detection import VadEvent, VadManager
@@ -20,6 +21,7 @@ from .voice_commands import VoiceCommandManager
 from .continuous_listener import ContinuousListener
 from .realtime_preview import RealtimePreview
 from .wake_word import WakeWordManager
+from .terminal_title import TerminalTitle
 
 
 class ListeningMode(Enum):
@@ -34,11 +36,13 @@ class StateManager:
                  clipboard_manager: ClipboardManager,
                  config_manager: ConfigManager,
                  vad_manager: VadManager,
+                 text_postprocessor: TextPostProcessor,
                  system_tray: Optional[SystemTray] = None,
                  audio_feedback: Optional[AudioFeedback] = None,
                  voice_command_manager: Optional[VoiceCommandManager] = None,
                  audio_stream_manager: Optional[AudioStreamManager] = None,
-                 continuous_listener: Optional[ContinuousListener] = None):
+                 continuous_listener: Optional[ContinuousListener] = None,
+                 terminal_title: Optional[TerminalTitle] = None):
 
         self.audio_recorder = audio_recorder
         self.whisper_engine = whisper_engine
@@ -47,11 +51,13 @@ class StateManager:
         self.config_manager = config_manager
         self.audio_feedback = OptionalComponent(audio_feedback)
         self.vad_manager = vad_manager
+        self.text_postprocessor = text_postprocessor
         self.voice_command_manager = voice_command_manager
         self.audio_stream_manager = audio_stream_manager
         self.continuous_listener = continuous_listener
         self.realtime_preview = None
         self.wake_word_manager: Optional[WakeWordManager] = None
+        self.terminal_title = OptionalComponent(terminal_title)
 
         self.is_processing = False
         self.is_model_loading = False
@@ -81,7 +87,7 @@ class StateManager:
         self.audio_recorder = audio_recorder
         self.system_tray = OptionalComponent(system_tray)
         self._ensure_audio_device_for_host(self._current_audio_host)
-    
+
     def handle_continuous_audio(self, audio_data):
         if self.realtime_preview:
             self.realtime_preview.deactivate()
@@ -96,6 +102,10 @@ class StateManager:
     def is_busy(self) -> bool:
         with self._state_lock:
             return self.is_processing or self.is_model_loading or self.audio_recorder.get_recording_status()
+
+    def _update_ui_state(self, state: str):
+        self.system_tray.update_state(state)
+        self.terminal_title.update_state(state)
 
     def handle_max_recording_duration_reached(self, audio_data):
         self.logger.info("Max recording duration reached - starting transcription")
@@ -170,7 +180,7 @@ class StateManager:
         self._command_mode = False
         self.audio_recorder.cancel_recording()
         self.audio_feedback.play_cancel_sound()
-        self.system_tray.update_state("idle")
+        self._update_ui_state("idle")
     
     def cancel_recording_hotkey_pressed(self) -> bool:
         current_state = self.get_current_state()
@@ -208,7 +218,7 @@ class StateManager:
             print("\n🎤 Command mode activated! Speak a command...")
             self.config_manager.print_command_stop_instructions()
             self.audio_feedback.play_start_sound()
-            self.system_tray.update_state("recording")
+            self._update_ui_state("recording")
 
     def _begin_recording(self):
         success = self.audio_recorder.start_recording()
@@ -217,7 +227,7 @@ class StateManager:
             print("\n🎤 Recording started! Speak now...")
             self.config_manager.print_stop_instructions_based_on_config()
             self.audio_feedback.play_start_sound()
-            self.system_tray.update_state("recording")
+            self._update_ui_state("recording")
             if self.preview_enabled and self.realtime_preview:
                 self.realtime_preview.activate()
     
@@ -236,12 +246,16 @@ class StateManager:
             duration = len(audio_data) / WHISPER_SAMPLE_RATE
             print(f"   ✓ Recorded {duration:.1f} seconds, transcribing...")
 
-            self.system_tray.update_state("processing")
+            self._update_ui_state("processing")
 
             transcribed_text = self.whisper_engine.transcribe_audio(audio_data)
 
             if not transcribed_text:
                 return
+
+            transcribed_text = self.text_postprocessor.process(transcribed_text)
+            print(f"   ✓ Transcribed: '{transcribed_text}'")
+            self._log_transcription(transcribed_text)
 
             if command_mode:
                 self._handle_command_transcription(transcribed_text, use_auto_enter)
@@ -283,15 +297,16 @@ class StateManager:
                 self._pending_model_change = None
 
             if not (pending_device or pending_model):
-                self.system_tray.update_state("idle")
+                self._update_ui_state("idle")
 
-    def _handle_command_transcription(self, text: str, use_auto_enter: bool = False):
+    def _log_transcription(self, text: str):
         log_config = self.config_manager.get_logging_config()
         if log_config.get('log_transcriptions', False):
-            self.logger.info(f"Command mode transcription: '{text}'")
+            self.logger.info(f"Transcribed text: '{text}'")
         else:
-            self.logger.info("Command mode transcription received")
+            self.logger.info(f"Transcribed {len(text)} chars")
 
+    def _handle_command_transcription(self, text: str, use_auto_enter: bool = False):
         if not self.voice_command_manager.enabled:
             self.logger.warning("Voice commands disabled")
             return
@@ -409,6 +424,7 @@ class StateManager:
             self.audio_stream_manager.stop()
 
         self.system_tray.stop()
+        self.terminal_title.stop()
     
     def set_model_loading(self, loading: bool):
         with self._state_lock:
@@ -417,9 +433,9 @@ class StateManager:
             
             if old_state != loading:
                 if loading:
-                    self.system_tray.update_state("processing")
+                    self._update_ui_state("processing")
                 else:
-                    self.system_tray.update_state("idle")
+                    self._update_ui_state("idle")
     
     def is_transcription_recording(self) -> bool:
         return self.audio_recorder.get_recording_status() and not self._command_mode

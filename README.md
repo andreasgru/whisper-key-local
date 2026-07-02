@@ -26,7 +26,7 @@ Requires Python 3.11-3.13
 # With pipx (isolated environment)
 pipx install whisper-key-local
 
-# Or with pip (simpler)
+# Or with pip
 pip install whisper-key-local
 ```
 
@@ -104,12 +104,18 @@ Delete this file and restart app to reset to defaults.
 | `whisper.compute_type` | `int8` | int8/float16/float32 |
 | `whisper.language` | `auto` | auto or language code (en, es, fr, etc.) |
 | `whisper.beam_size` | `5` | Higher = more accurate but slower (1-10) |
+| `whisper.initial_prompt` | `""` | Guide transcription style, language variant, or script |
+| `whisper.hotwords` | `[]` | Words the model should favor (names, technical terms) |
 | `whisper.models` | (see config) | Add custom HuggingFace or local models |
+| **Post-Processing** |||
+| `post_processing.strip_trailing_period` | `false` | Strip trailing period from output |
+| `post_processing.corrections` | `{}` | Fix recurring misheard words, e.g. `CAPEX: [cap x]` |
 | **Hotkeys** |||
 | `hotkey.recording_hotkey` | `ctrl+win` / `fn+ctrl` | Windows / macOS |
 | `hotkey.stop_key` | `ctrl` / `fn` | Stop recording |
 | `hotkey.auto_send_key` | `alt` / `option` | Stop + paste + Enter |
 | `hotkey.cancel_combination` | `esc` / `shift` | Cancel recording |
+| `hotkey.recording_mode` | `toggle` | toggle or push_to_talk |
 | `hotkey.command_hotkey` | `alt+win` / `fn+command` | Voice command mode |
 | **Voice Activity Detection** |||
 | `vad.vad_precheck_enabled` | `true` | Prevent hallucinations on silence |
@@ -128,22 +134,38 @@ Delete this file and restart app to reset to defaults.
 | `clipboard.auto_paste` | `true` | false = clipboard only |
 | `clipboard.delivery_method` | `paste` | paste (Ctrl+V) or type (direct injection) |
 | `clipboard.paste_hotkey` | `ctrl+v` / `cmd+v` | Paste key simulation |
+| `clipboard.paste_pre_paste_delay` | `0.05` | Delay after copy, before paste hotkey (seconds) |
 | `clipboard.paste_preserve_clipboard` | `true` | Restore clipboard after paste |
+| `clipboard.paste_clipboard_restore_delay` | `0.5` | Delay before clipboard restore (seconds) |
+| `clipboard.type_also_copy_to_clipboard` | `false` | Also copy to clipboard in type mode |
+| `clipboard.type_auto_enter_delay` | `0.15` | Delay before ENTER after typing (seconds) |
+| `clipboard.type_auto_enter_delay_per_100_chars` | `0.1` | Extra ENTER delay per 100 typed chars (seconds) |
 | **Logging** |||
 | `logging.level` | `INFO` | DEBUG/INFO/WARNING/ERROR/CRITICAL |
 | `logging.file.enabled` | `true` | Write to app.log |
+| `logging.log_transcriptions` | `false` | Include transcribed text in log (privacy) |
 | `logging.console.enabled` | `true` | Print to console |
 | `logging.console.level` | `WARNING` | Console verbosity |
 | **Audio Feedback** |||
 | `audio_feedback.enabled` | `true` | Play sounds on record/stop |
 | `audio_feedback.transcription_complete_enabled` | `false` | Play sound on transcription complete |
+| `audio_feedback.ready_enabled` | `true` | Play sound when app finishes loading |
 | `audio_feedback.start_sound` | `assets/sounds/...` | Custom sound file path |
 | `audio_feedback.stop_sound` | `assets/sounds/...` | Custom sound file path |
 | `audio_feedback.cancel_sound` | `assets/sounds/...` | Custom sound file path |
 | `audio_feedback.transcription_complete_sound` | `assets/sounds/...` | Custom sound file path |
+| `audio_feedback.ready_sound` | `assets/sounds/...` | Custom sound file path |
 | **System Tray** |||
 | `system_tray.enabled` | `true` | Show tray icon |
 | `system_tray.tooltip` | `Whisper Key` | Hover text |
+| **Terminal Title** |||
+| `terminal_title.idle` | `""` | Tab title prefix when idle: static string or `[prefix, seconds]` animation frames |
+| `terminal_title.recording` | 🔴 blink | Tab title prefix while recording |
+| `terminal_title.processing` | `""` | Tab title prefix while transcribing |
+| **Console** |||
+| `console.start_hidden` | `false` | Hide console after startup (whisper-key-hideable.exe only) |
+| **Update** |||
+| `update.mode` | `prompt` | prompt or auto |
 | **Voice Commands** |||
 | `voice_commands.enabled` | `true` | Enable voice command mode |
 

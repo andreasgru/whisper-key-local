@@ -2,13 +2,14 @@
 @completed.md
 
 ## Next
--
 
 ## Bugs
+- **CUDA version forward-compatibility** - onboarding GPU detection doesn't recognize newer CUDA versions (e.g. CUDA 13.x), and CTranslate2 requires `cublas64_12.dll` which isn't present when only CUDA 13+ is installed. Workaround: manually copy CUDA 12 cuBLAS/cuDNN libs into CUDA 13 bin directory. Need to detect newer CUDA versions and guide users to install the required CUDA 12 compatibility libs
 - **Silent close when already running** - `.exe` users see the app instantly close with no message when another instance is already running
 - **No download progress shown** - HuggingFace model download doesn't display any state or progress to the user
 - **Ctrl+C doesn't work after HuggingFace download** - shutdown signal not caught
 - **(macOS) System freezes on transcription** - needs verification
+- **(macOS) Stop hotkey requires double-press** - remapping stop hotkey to Ctrl requires pressing it twice to stop recording. Default Fn key also conflicts with macOS language keyboard toggle
 - **GPU model switch crash** - upstream CT2 bug, `thread_local` GPU handles corrupt HIP/CUDA on Worker thread teardown ([faster-whisper #71](https://github.com/SYSTRAN/faster-whisper/issues/71)). Future option: auto-restart app on model switch in GPU mode
 
 ## Backlog
@@ -71,10 +72,7 @@
 
 ### Hotkeys
 - As a *user* I want **hotkey sequence ordering** so more hotkey combos can coexist without conflicting (e.g., Ctrl+Alt+Space vs Alt+Ctrl+Space become distinct sequences)
-
-### Personalization
-- As a *user*, I want **custom hotwords** so I can bias the transcription model toward rare words and names that I say often
-- As a *user*, I want **post-transcription replacements** so consistent misrecognitions are automatically corrected after transcription (e.g., "see translate two" → "CTranslate2")
+- As a *developer* I want a **typed `HotkeyBinding` contract** between `hotkey_listener.py` and the platform backends so library-specific fields stop leaking across the boundary — today `hotkey_listener` appends a raw `False` 4th element that silently sets `global-hotkeys`' `actuate_on_partial_release=False` on Windows while macOS ignores it entirely, causing undocumented cross-platform drift and making push-to-talk on multi-key combos behave inconsistently (surfaced by [#51](https://github.com/PinW/whisper-key-local/pull/51))
 
 ### Desktop App
 - As a *user*, I want a **desktop GUI** so that I can change settings without editing files

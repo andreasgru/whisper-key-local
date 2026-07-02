@@ -36,6 +36,7 @@ class HotkeyListener:
             hotkey_configs.append({
                 'combination': self.recording_hotkey,
                 'callback': self._standard_hotkey_pressed,
+                'release_callback': self._arm_keys_on_release,
                 'name': 'standard'
             })
 
@@ -62,11 +63,19 @@ class HotkeyListener:
             })
 
         if self.command_hotkey:
-            hotkey_configs.append({
-                'combination': self.command_hotkey,
-                'callback': self._command_hotkey_pressed,
-                'name': 'command'
-            })
+            if self.recording_mode == "push_to_talk":
+                hotkey_configs.append({
+                    'combination': self.command_hotkey,
+                    'callback': self._command_hotkey_pressed,
+                    'release_callback': self._push_to_talk_released,
+                    'name': 'command (push-to-talk)'
+                })
+            else:
+                hotkey_configs.append({
+                    'combination': self.command_hotkey,
+                    'callback': self._command_hotkey_pressed,
+                    'name': 'command'
+                })
 
         hotkey_configs.sort(key=self._get_hotkey_combination_specificity, reverse=True)
 

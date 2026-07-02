@@ -23,7 +23,7 @@ def _build_settings_header():
         "\n"
     )
 
-EXTENSIBLE_PATHS = {'whisper.models', 'streaming.models'}
+EXTENSIBLE_PATHS = {'whisper.models', 'streaming.models', 'post_processing.corrections'}
 
 def deep_merge_config(default_config: Dict[str, Any],
                       user_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -301,8 +301,17 @@ class ConfigManager:
     def get_audio_feedback_config(self) -> Dict[str, Any]:
         return self.config['audio_feedback'].copy()
 
+    def get_post_processing_config(self) -> Dict[str, Any]:
+        return self.config.get('post_processing', {}).copy()
+
     def get_voice_commands_config(self) -> Dict[str, Any]:
         return self.config.get('voice_commands', {}).copy()
+
+    def get_terminal_title_config(self) -> Dict[str, Any]:
+        return self.config.get('terminal_title', {}).copy()
+
+    def get_console_config(self) -> Dict[str, Any]:
+        return self.config.get('console', {}).copy()
 
     def get_update_config(self) -> Dict[str, Any]:
         return self.config.get('update', {}).copy()
