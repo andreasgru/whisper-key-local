@@ -37,6 +37,14 @@ dependencies = [
     "pyobjc-framework-ApplicationServices; sys_platform=='darwin'",
 ]
 
+[project.optional-dependencies]
+wakeword = [
+    "openwakeword>=0.6",
+    # macOS arm64: kein tflite-runtime-Wheel; LiteRT ist der API-kompatible Ersatz
+    # (openWakeWord-ONNX liefert dort Null-Scores, siehe Upstream-Issue #336)
+    "ai-edge-litert; sys_platform=='darwin'",
+]
+
 [project.scripts]
 whisper-key = "whisper_key.main:main"
 wk = "whisper_key.main:main"

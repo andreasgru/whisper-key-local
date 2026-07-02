@@ -18,8 +18,11 @@ def main():
         print("WAKEWORD SKIP: openwakeword nicht installiert")
         return
     import openwakeword
+    from whisper_key.wake_word import _ensure_tflite_runtime
     openwakeword.utils.download_models()
-    model = OwwModel(inference_framework="onnx")
+    framework = "tflite" if _ensure_tflite_runtime() else "onnx"
+    print(f"framework: {framework}")
+    model = OwwModel(inference_framework=framework)
     with wave.open(sys.argv[1], 'rb') as w:
         raw = w.readframes(w.getnframes())
     audio = np.frombuffer(raw, dtype=np.int16)

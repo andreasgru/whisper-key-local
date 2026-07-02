@@ -25,6 +25,27 @@ except ImportError:
     HAS_PORCUPINE = False
 
 
+def _ensure_tflite_runtime() -> bool:
+    """openwakeword importiert fest tflite_runtime.interpreter; auf macOS arm64
+    gibt es das nur als ai-edge-litert (API-kompatibler Nachfolger) -> Alias."""
+    try:
+        import tflite_runtime.interpreter  # noqa: F401
+        return True
+    except ImportError:
+        pass
+    try:
+        import sys
+        import types
+        import ai_edge_litert.interpreter as litert_interpreter
+        pkg = types.ModuleType("tflite_runtime")
+        pkg.interpreter = litert_interpreter
+        sys.modules["tflite_runtime"] = pkg
+        sys.modules["tflite_runtime.interpreter"] = litert_interpreter
+        return True
+    except ImportError:
+        return False
+
+
 class WakeWordEngine(ABC):
     @property
     @abstractmethod
@@ -54,7 +75,10 @@ class OpenWakeWordEngine(WakeWordEngine):
         if not HAS_OPENWAKEWORD:
             raise ImportError("openwakeword is not installed")
 
-        inference_framework = "onnx"
+        # ONNX-Backend liefert auf macOS arm64 Null-Scores (openWakeWord #336)
+        # -> tflite bevorzugen, wenn ein TFLite-Interpreter verfuegbar ist
+        inference_framework = "tflite" if _ensure_tflite_runtime() else "onnx"
+        self.logger.info(f"openWakeWord inference framework: {inference_framework}")
         kwargs = {"inference_framework": inference_framework}
         if model_paths:
             kwargs["wakeword_models"] = model_paths
