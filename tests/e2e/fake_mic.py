@@ -23,12 +23,27 @@ def install(wav_path):
 
     sd.InputStream = _FakeInputStream
     sd.query_devices = _fake_query_devices
-    sd.query_hostapis = lambda i=None: {'name': 'FakeCoreAudio'}
+    sd.query_hostapis = _fake_query_hostapis
+
+
+_DEVICE = {'name': 'FakeMic', 'hostapi': 0, 'index': 0,
+           'max_input_channels': 1, 'max_output_channels': 0,
+           'default_samplerate': 16000.0}
+
+_HOSTAPI = {'name': 'FakeCoreAudio', 'devices': [0],
+            'default_input_device': 0, 'default_output_device': -1}
 
 
 def _fake_query_devices(device=None, kind=None):
-    return {'name': 'FakeMic', 'hostapi': 0, 'max_input_channels': 1,
-            'default_samplerate': 16000.0, 'index': 0}
+    if device is None and kind is None:
+        return [_DEVICE]
+    return _DEVICE
+
+
+def _fake_query_hostapis(index=None):
+    if index is None:
+        return (_HOSTAPI,)
+    return _HOSTAPI
 
 
 class _FakeInputStream:

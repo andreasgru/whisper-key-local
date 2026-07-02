@@ -131,6 +131,17 @@ class VadManager:
     def is_available(self) -> bool:
         return self.ten_vad is not None
 
+    def probability_for_chunk(self, audio_int16: np.ndarray) -> float:
+        # TEN VAD verarbeitet exakt VAD_CHUNK_SIZE Samples pro Aufruf
+        probability = 0.0
+        for i in range(0, len(audio_int16), VAD_CHUNK_SIZE):
+            sub_chunk = audio_int16[i:i + VAD_CHUNK_SIZE]
+            if len(sub_chunk) < VAD_CHUNK_SIZE:
+                sub_chunk = np.pad(sub_chunk, (0, VAD_CHUNK_SIZE - len(sub_chunk)), mode='constant', constant_values=0)
+            p, _ = self.ten_vad.process(sub_chunk)
+            probability = max(probability, p)
+        return probability
+
 class Hysteresis:
     def __init__(self, high_threshold, low_threshold, frame_duration_sec):
         self.high_threshold = high_threshold

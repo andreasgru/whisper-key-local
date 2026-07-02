@@ -98,8 +98,7 @@ class ContinuousListener:
                 chunk_16k = audio_chunk
 
             audio_int16 = convert_audio_for_ten_vad(chunk_16k)
-            probability, _ = self.vad_manager.ten_vad.process(audio_int16)
-            return probability
+            return self.vad_manager.probability_for_chunk(audio_int16)
         except Exception as e:
             self.logger.error(f"VAD processing error: {e}")
             return None

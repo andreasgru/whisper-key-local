@@ -152,7 +152,7 @@ class WakeWordManager:
 
     def _detect_speech_vad(self, audio_int16: np.ndarray) -> bool:
         try:
-            probability, _ = self.vad_manager.ten_vad.process(audio_int16)
+            probability = self.vad_manager.probability_for_chunk(audio_int16)
             if self._speech_detected:
                 self._speech_detected = probability > self.vad_manager.vad_offset_threshold
             else:
