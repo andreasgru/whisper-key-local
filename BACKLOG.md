@@ -7,13 +7,18 @@
   - Upstream v0.8.2 gemergt (Stop-Key-Fix, Text-Corrections, Console-Mgmt, …)
   - Overlay hinter Platform-Abstraktion: Windows tkinter / macOS natives NSPanel (pyobjc)
   - Echte macOS-Monitor-Implementierung (NSScreen/Quartz, Top-Left-normiert)
-  - Bugfixes: log_transcriptions-Merge-Regression; TEN-VAD 256er-Hop-Pflicht (macOS-Build)
+  - Bugfixes: log_transcriptions-Merge-Regression; TEN-VAD 256er-Hop-Pflicht (macOS-Build);
+    openWakeWord-ONNX-Null-Scores auf arm64 (→ tflite via ai-edge-litert, oww-Issue #336);
+    Wake-Word-VAD-Pre-Filter verlor Phrasen-Anfang (→ Pre-Roll-Buffer, betrifft auch Windows)
+  - Simulations-Abnahme: HTTP von außen, echtes Mikro + Deutsch (zeichengenau), Continuous,
+    Wake-Word-Kette (Alexa-Clip score 1.000), Menu-Bar-Modellwechsel, Deutsch-Benchmark
+    (Gesprochene Wikipedia: base 22×/small 8×/turbo 4× Echtzeit; Qualität: turbo ≫ small > base)
   - Automatisierte E2E-Suite `tests/e2e/` (say-TTS-Audio, Fake-Mic, HTTP-Zyklus) — alle grün
   - Deployment-Skript `tests/e2e/deploy_to_mac.sh` (rsync, GitHub am Mac SNI-geblockt)
 
 ## Offen
 
-- [ ] Manuelle Abnahme am Mac (Permissions, echte Hotkeys/Mikro, Overlay sichtbar) — Checkliste: `doc/plans/active/2026-07-02-macos-abnahme.md`
+- [ ] Rest-Abnahme am Mac (nur noch: Hotkeys drücken, Auto-Paste am Cursor, Wake Word per echter Stimme, Overlay sichtbar) — Checkliste: `doc/plans/active/2026-07-02-macos-abnahme.md`
 - [ ] Metal-/MLX-Whisper-Backend für M5 Max (faster-whisper läuft CPU-only; Kandidaten: mlx-whisper, whisper.cpp Metal). Motivation: large-v3-turbo braucht auf CPU 7,5s für 3,7s Audio (2× langsamer als Echtzeit); Default deshalb vorerst `small` (1,49s)
 - [ ] Windows-Regressionstest nach Overlay-Refactoring (tkinter-Code nur verschoben, ungetestet auf Windows)
 - [ ] Porcupine-Wake-Word: Access Key besorgen, falls gewünscht (openWakeWord läuft ohne)
