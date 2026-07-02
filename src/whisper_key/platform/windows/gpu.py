@@ -87,13 +87,17 @@ def _classify_gpu(gpu_vendor: str, gpu_name: str) -> str | None:
     if gpu_vendor == 'nvidia':
         return 'nvidia'
     if gpu_vendor == 'amd':
-        match = re.search(r'RX\s+(\d)', gpu_name)
+        name = gpu_name.upper()
+        match = re.search(r'RX\s*(\d{4})', name)
         if match:
-            series = int(match.group(1))
+            series = int(match.group(1)) // 1000
             if series == 5:
                 return 'amd_rdna1'
-            if series >= 6:
+            if series in (6, 7, 9):
                 return 'amd_rdna2+'
+            return None
+        if re.search(r'\b80[0-9]0S\b', name):
+            return 'amd_rdna2+'
     return None
 
 
