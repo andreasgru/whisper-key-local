@@ -2,11 +2,15 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections import deque
 from typing import Callable, Optional
 
 import numpy as np
 
 from .audio_stream import AudioStreamManager, WHISPER_SAMPLE_RATE, STREAM_CHUNK_SAMPLES
+
+# ~0,5s Pre-Roll bei 512-Sample-Chunks @16kHz (16 * 512 = 8192 Samples)
+PRE_ROLL_CHUNKS = 16
 from .voice_activity_detection import VadManager, convert_audio_for_ten_vad
 
 try:
@@ -173,6 +177,9 @@ class WakeWordManager:
 
         self._onset_threshold = vad_manager.vad_onset_threshold
         self._speech_detected = False
+        # VAD-Onset oeffnet erst mitten in der Wake-Phrase; die letzten ~0,5s
+        # werden beim Oeffnen nachgereicht, sonst fehlt der Phrasen-Anfang
+        self._pre_roll = deque(maxlen=PRE_ROLL_CHUNKS)
 
     def _detect_speech_vad(self, audio_int16: np.ndarray) -> bool:
         try:
@@ -192,6 +199,7 @@ class WakeWordManager:
         self._active = True
         self._chunk_accumulator = np.array([], dtype=np.int16)
         self._speech_detected = False
+        self._pre_roll.clear()
         self.engine.reset()
         self.audio_stream_manager.add_consumer(self._on_audio_chunk)
         self.logger.info("Wake word manager activated")
@@ -205,6 +213,7 @@ class WakeWordManager:
         self.audio_stream_manager.remove_consumer(self._on_audio_chunk)
         self._chunk_accumulator = np.array([], dtype=np.int16)
         self._speech_detected = False
+        self._pre_roll.clear()
         self.logger.info("Wake word manager deactivated")
 
     def _on_audio_chunk(self, audio_data):
@@ -221,20 +230,29 @@ class WakeWordManager:
 
         audio_int16 = convert_audio_for_ten_vad(chunk_16k)
 
-        if self.vad_pre_filter and not self._detect_speech_vad(audio_int16):
-            self._chunk_accumulator = np.array([], dtype=np.int16)
-            return
+        if self.vad_pre_filter:
+            if not self._detect_speech_vad(audio_int16):
+                self._pre_roll.append(audio_int16)
+                self._chunk_accumulator = np.array([], dtype=np.int16)
+                return
+            # VAD hat geoeffnet: Pre-Roll zuerst nachreichen (Phrasen-Anfang)
+            while self._pre_roll:
+                self._feed_engine(self._pre_roll.popleft())
 
+        self._feed_engine(audio_int16)
+
+    def _feed_engine(self, audio_int16: np.ndarray):
         target_samples = self.engine.chunk_samples
 
-        if len(audio_int16) == target_samples:
+        if len(self._chunk_accumulator) == 0 and len(audio_int16) == target_samples:
             self._process_engine_chunk(audio_int16)
-        else:
-            self._chunk_accumulator = np.concatenate([self._chunk_accumulator, audio_int16])
-            while len(self._chunk_accumulator) >= target_samples:
-                engine_chunk = self._chunk_accumulator[:target_samples]
-                self._chunk_accumulator = self._chunk_accumulator[target_samples:]
-                self._process_engine_chunk(engine_chunk)
+            return
+
+        self._chunk_accumulator = np.concatenate([self._chunk_accumulator, audio_int16])
+        while len(self._chunk_accumulator) >= target_samples:
+            engine_chunk = self._chunk_accumulator[:target_samples]
+            self._chunk_accumulator = self._chunk_accumulator[target_samples:]
+            self._process_engine_chunk(engine_chunk)
 
     def _process_engine_chunk(self, audio_int16: np.ndarray):
         now = time.time()
