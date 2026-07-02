@@ -10,7 +10,7 @@ import signal
 import sys
 import threading
 
-from .platform import app, permissions, console
+from .platform import app, permissions, console, IS_MACOS
 from .config_manager import ConfigManager
 from .audio_stream import AudioStreamManager
 from .audio_recorder import AudioRecorder
@@ -102,19 +102,32 @@ def setup_streaming(streaming_config, model_registry):
     )
 
 def setup_whisper_engine(whisper_config, vad_manager, model_registry, config_manager=None, log_transcriptions=False):
+    engine_kwargs = dict(
+        model_key=whisper_config['model'],
+        device=whisper_config['device'],
+        compute_type=whisper_config['compute_type'],
+        language=whisper_config['language'],
+        beam_size=whisper_config['beam_size'],
+        initial_prompt=whisper_config.get('initial_prompt', ''),
+        hotwords=whisper_config.get('hotwords', []),
+        vad_manager=vad_manager,
+        model_registry=model_registry,
+        log_transcriptions=log_transcriptions,
+    )
+
+    engine_pref = whisper_config.get('engine', 'auto')
+    if IS_MACOS and engine_pref in ('auto', 'mlx'):
+        from .whisper_engine_mlx import MlxWhisperEngine, MLX_MODEL_REPOS, is_mlx_available
+        if is_mlx_available() and whisper_config['model'] in MLX_MODEL_REPOS:
+            try:
+                return MlxWhisperEngine(**engine_kwargs)
+            except Exception as e:
+                logging.getLogger(__name__).warning(f"MLX engine unavailable ({e}); falling back to faster-whisper")
+        elif engine_pref == 'mlx':
+            print("   ⚠ whisper.engine=mlx unavailable (mlx-whisper missing or no MLX version of model) — using faster-whisper")
+
     try:
-        return WhisperEngine(
-            model_key=whisper_config['model'],
-            device=whisper_config['device'],
-            compute_type=whisper_config['compute_type'],
-            language=whisper_config['language'],
-            beam_size=whisper_config['beam_size'],
-            initial_prompt=whisper_config.get('initial_prompt', ''),
-            hotwords=whisper_config.get('hotwords', []),
-            vad_manager=vad_manager,
-            model_registry=model_registry,
-            log_transcriptions=log_transcriptions
-        )
+        return WhisperEngine(**engine_kwargs)
     except RuntimeError as e:
         if whisper_config['device'] != 'cuda' or not config_manager:
             raise

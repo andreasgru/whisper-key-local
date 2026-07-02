@@ -35,6 +35,9 @@ dependencies = [
     # macOS-only
     "pyobjc-framework-Quartz; sys_platform=='darwin'",
     "pyobjc-framework-ApplicationServices; sys_platform=='darwin'",
+    # GPU-Engine (M-Serie): 23-40x schneller als faster-whisper-CPU, siehe
+    # doc/research/2026-07-02-whisper-backend-benchmark-m5.md
+    "mlx-whisper>=0.4.3; sys_platform=='darwin' and platform_machine=='arm64'",
 ]
 
 [project.optional-dependencies]
