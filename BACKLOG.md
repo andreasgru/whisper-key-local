@@ -25,6 +25,7 @@
 ## Offen
 
 - [ ] Rest-Abnahme am Mac (nur noch: Hotkeys drücken, Auto-Paste am Cursor, Wake Word per echter Stimme, Overlay sichtbar) — Checkliste: `doc/plans/active/2026-07-02-macos-abnahme.md`
+- [ ] Nach Abnahme: `feature/macos-port` → neuer `local_master` (enthält auch Windows-relevante Fixes; Branch-Topologie siehe Handover). Alter Windows-Stand bleibt via Tag `pre-upstream-merge-20260702` erreichbar
 - [ ] Optional: parakeet-mlx als Realtime-Preview-Engine (nochmal ~1,5× schneller
       als mlx-whisper, Qualität leicht darunter — für Live-Preview egal)
 - [ ] Windows-Regressionstest nach Overlay-Refactoring (tkinter-Code nur verschoben, ungetestet auf Windows)
