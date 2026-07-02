@@ -19,7 +19,11 @@
 ## Offen
 
 - [ ] Rest-Abnahme am Mac (nur noch: Hotkeys drücken, Auto-Paste am Cursor, Wake Word per echter Stimme, Overlay sichtbar) — Checkliste: `doc/plans/active/2026-07-02-macos-abnahme.md`
-- [ ] Metal-/MLX-Whisper-Backend für M5 Max (faster-whisper läuft CPU-only; Kandidaten: mlx-whisper, whisper.cpp Metal). Motivation: large-v3-turbo braucht auf CPU 7,5s für 3,7s Audio (2× langsamer als Echtzeit); Default deshalb vorerst `small` (1,49s)
+- [ ] **mlx-whisper als macOS-Engine-Backend integrieren** — Benchmark entschieden
+      (doc/research/2026-07-02-whisper-backend-benchmark-m5.md): mlx-whisper turbo
+      0,64s/60s bzw. 0,10s/Satz = 23–40× schneller als CPU bei gleicher Qualität;
+      whisper.cpp Metal 11×, WhisperKit/ANE nur ~1,8×, parakeet-v3 am schnellsten
+      aber Qualität leicht darunter (Kandidat für Realtime-Preview)
 - [ ] Windows-Regressionstest nach Overlay-Refactoring (tkinter-Code nur verschoben, ungetestet auf Windows)
 - [ ] Porcupine-Wake-Word: Access Key besorgen, falls gewünscht (openWakeWord läuft ohne)
 - [ ] Ggf. PR des macOS-Ports an Upstream (PinW) — VAD-Hop-Fix ist auch upstream-relevant
