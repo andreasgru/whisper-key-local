@@ -12,6 +12,7 @@ import logging
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Optional
 
 import numpy as np
@@ -86,6 +87,10 @@ class MlxWhisperEngine:
 
         self._loading_thread = None
         self._transcribe_lock = threading.Lock()
+        # MLX bindet Operationen an den Stream des ausfuehrenden Threads;
+        # Laden und Inferenz MUESSEN deshalb auf demselben Thread laufen
+        # ("There is no Stream(gpu, N) in current thread" sonst).
+        self._mlx_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mlx-engine")
 
         self._load_model()
 
@@ -98,7 +103,7 @@ class MlxWhisperEngine:
         if not _is_repo_cached(repo):
             print("Downloading model, this may take a few minutes....")
         with self._transcribe_lock:
-            self.model = ModelHolder.get_model(repo, mx.float16)
+            self.model = self._mlx_thread.submit(ModelHolder.get_model, repo, mx.float16).result()
         print(f"   ✓ Whisper model [{self.model_key}] ready!")
         print("   ✓ Running on GPU (MLX, Apple Silicon)")
 
@@ -119,7 +124,7 @@ class MlxWhisperEngine:
         if self.initial_prompt:
             kwargs["initial_prompt"] = self.initial_prompt
 
-        result = mlx_whisper.transcribe(audio_data, **kwargs)
+        result = self._mlx_thread.submit(mlx_whisper.transcribe, audio_data, **kwargs).result()
         text = (result.get("text") or "").strip()
         return text if text else None
 
@@ -198,7 +203,7 @@ class MlxWhisperEngine:
                 if progress_callback:
                     progress_callback("Loading cached model..." if _is_repo_cached(repo) else "Downloading model...")
                 with self._transcribe_lock:
-                    new_model = ModelHolder.get_model(repo, mx.float16)
+                    new_model = self._mlx_thread.submit(ModelHolder.get_model, repo, mx.float16).result()
                     self.model = new_model
                     self.model_key = new_model_key
                 self.logger.info(f"MLX Whisper model [{new_model_key}] loaded successfully")
